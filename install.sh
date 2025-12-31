@@ -34,12 +34,12 @@ detect_os() {
     esac
 }
 
-# Get Firefox profiles directory
-get_profiles_dir() {
+# Get Firefox base directory (where profiles and Profile Groups are stored)
+get_firefox_dir() {
     local os="$1"
     case "$os" in
         linux)  echo "$HOME/.mozilla/firefox" ;;
-        macos)  echo "$HOME/Library/Application Support/Firefox/Profiles" ;;
+        macos)  echo "$HOME/Library/Application Support/Firefox" ;;
     esac
 }
 
@@ -58,7 +58,7 @@ get_profile_groups_db() {
     local os="$1"
     local create="${2:-false}"
     local profiles_dir
-    profiles_dir=$(get_profiles_dir "$os")
+    profiles_dir=$(get_firefox_dir "$os")
 
     local db_dir="$profiles_dir/Profile Groups"
 
@@ -119,7 +119,7 @@ find_profile_by_name_sqlite() {
     local name="$2"
     local profiles_dir db_file
 
-    profiles_dir=$(get_profiles_dir "$os")
+    profiles_dir=$(get_firefox_dir "$os")
     db_file=$(get_profile_groups_db "$os")
 
     if [[ -z "$db_file" ]]; then
@@ -171,7 +171,7 @@ find_profile_by_name() {
     # Fall back to profiles.ini
     local profiles_ini profiles_dir
     profiles_ini=$(get_profiles_ini "$os")
-    profiles_dir=$(get_profiles_dir "$os")
+    profiles_dir=$(get_firefox_dir "$os")
 
     if [[ ! -f "$profiles_ini" ]]; then
         return
@@ -250,7 +250,7 @@ find_default_profile() {
     local os="$1"
     local profiles_dir
 
-    profiles_dir=$(get_profiles_dir "$os")
+    profiles_dir=$(get_firefox_dir "$os")
 
     if [[ ! -d "$profiles_dir" ]]; then
         error "Firefox profiles directory not found: $profiles_dir"
@@ -287,7 +287,7 @@ create_profile_new() {
         return 1
     fi
 
-    profiles_dir=$(get_profiles_dir "$os")
+    profiles_dir=$(get_firefox_dir "$os")
     # Create database if it doesn't exist
     db_file=$(get_profile_groups_db "$os" "true")
 

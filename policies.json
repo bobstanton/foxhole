@@ -162,6 +162,12 @@
       "Default": "Kagi",
       "PreventInstalls": false
     },
-    "SearchBar": "unified"
+    "SearchBar": "unified",
+    "Preferences": {
+      "browser.profiles.enabled": {
+        "Value": true,
+        "Status": "default"
+      }
+    }
   }
 }
