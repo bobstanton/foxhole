@@ -227,6 +227,96 @@ find_default_profile() {
     echo "$profile"
 }
 
+# Generate a random 8-character alphanumeric string for profile directory names
+random_hash() {
+    LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 8
+}
+
+# Create a profile in Firefox 128+ new profile system (Profile Groups SQLite database)
+# Returns the full path to the created profile directory
+create_profile_new() {
+    local os="$1"
+    local name="$2"
+    local profiles_dir db_file
+
+    profiles_dir=$(get_profiles_dir "$os")
+    db_file=$(get_profile_groups_db "$os")
+
+    if [[ -z "$db_file" ]] || ! command -v sqlite3 &>/dev/null; then
+        return 1
+    fi
+
+    # Check if profile already exists
+    local existing
+    existing=$(sqlite3 "$db_file" "SELECT path FROM Profiles WHERE LOWER(name) = LOWER('$name') LIMIT 1" 2>/dev/null)
+    if [[ -n "$existing" ]]; then
+        warn "Profile '$name' already exists"
+        echo "$profiles_dir/$existing"
+        return 0
+    fi
+
+    # Generate directory name
+    local hash dir_name profile_path
+    hash=$(random_hash)
+    dir_name="${hash}.${name}"
+    profile_path="$profiles_dir/$dir_name"
+
+    # Create directory
+    mkdir -p "$profile_path"
+
+    # Pick avatar and theme colors per profile
+    local avatar theme_id theme_fg theme_bg
+    case "$(to_lower "$name")" in
+        default|primary)
+            avatar="default-favicon"
+            theme_id="default-theme@mozilla.org"
+            theme_fg="rgb(21,20,26)"
+            theme_bg="rgb(240,240,244)"
+            ;;
+        relaxed)
+            avatar="diamond"
+            theme_id="default-theme@mozilla.org"
+            theme_fg="rgb(0,119,0)"
+            theme_bg="rgb(225,255,225)"
+            ;;
+        ephemeral)
+            avatar="history"
+            theme_id="default-theme@mozilla.org"
+            theme_fg="rgb(0,83,203)"
+            theme_bg="rgb(226,247,255)"
+            ;;
+        *)
+            avatar="default-favicon"
+            theme_id="default-theme@mozilla.org"
+            theme_fg="rgb(21,20,26)"
+            theme_bg="rgb(240,240,244)"
+            ;;
+    esac
+
+    # Get next ID
+    local next_id
+    next_id=$(sqlite3 "$db_file" "SELECT COALESCE(MAX(id), 0) + 1 FROM Profiles" 2>/dev/null)
+
+    # Insert into database
+    if sqlite3 "$db_file" "INSERT INTO Profiles (id, path, name, avatar, themeId, themeFg, themeBg) VALUES ($next_id, '$dir_name', '$name', '$avatar', '$theme_id', '$theme_fg', '$theme_bg')" 2>/dev/null; then
+        echo "$profile_path"
+        return 0
+    else
+        warn "Failed to insert profile '$name' into database"
+        rm -rf "$profile_path"
+        return 1
+    fi
+}
+
+# Create a profile in the Profile Groups database
+# Requires Firefox 128+ with the new profile system and sqlite3
+create_profile() {
+    local os="$1"
+    local name="$2"
+
+    create_profile_new "$os" "$name"
+}
+
 # Get Firefox distribution directory
 get_distribution_dir() {
     local os="$1"
@@ -476,36 +566,24 @@ main() {
         if [[ "${option:-2}" == "1" ]]; then
             # Create profiles
             info "Creating Firefox profiles..."
+            warn "Firefox must be closed for profile creation."
 
-            local profiles_dir
-            profiles_dir=$(get_profiles_dir "$os")
-
+            profiles_to_install=()
             for profile_name in Default Relaxed Ephemeral; do
-                if firefox -CreateProfile "$profile_name" 2>/dev/null; then
-                    info "Created profile: $profile_name"
+                local profile_path
+                profile_path=$(create_profile "$os" "$profile_name")
+                if [[ -n "$profile_path" ]]; then
+                    local profile_type
+                    profile_type=$(to_lower "$profile_name")
+                    profiles_to_install+=("$profile_type:$profile_path")
+                    info "Created profile: $profile_name -> $profile_path"
                 else
-                    warn "Failed to create profile: $profile_name (may already exist)"
+                    warn "Failed to create profile: $profile_name"
                 fi
             done
 
-            # Re-detect the profiles
-            default_profile=$(find_profile_by_name "$os" "Default")
-            relaxed_profile=$(find_profile_by_name "$os" "Relaxed")
-            ephemeral_profile=$(find_profile_by_name "$os" "Ephemeral")
-
-            profiles_to_install=()
-            if [[ -n "$default_profile" && -d "$default_profile" ]]; then
-                profiles_to_install+=("default:$default_profile")
-            fi
-            if [[ -n "$relaxed_profile" && -d "$relaxed_profile" ]]; then
-                profiles_to_install+=("relaxed:$relaxed_profile")
-            fi
-            if [[ -n "$ephemeral_profile" && -d "$ephemeral_profile" ]]; then
-                profiles_to_install+=("ephemeral:$ephemeral_profile")
-            fi
-
             if [[ ${#profiles_to_install[@]} -eq 0 ]]; then
-                error "Failed to create or detect profiles"
+                error "Failed to create profiles. Is Firefox closed?"
             fi
 
             echo ""

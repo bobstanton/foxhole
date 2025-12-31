@@ -51,6 +51,7 @@
       "Cryptomining": true,
       "Fingerprinting": true
     },
+    "NewTabPage": false,
     "FirefoxHome": {
       "Search": false,
       "TopSites": false,
@@ -58,6 +59,8 @@
       "Highlights": false,
       "Pocket": false,
       "SponsoredPocket": false,
+      "Stories": false,
+      "SponsoredStories": false,
       "Snippets": false,
       "Locked": true
     },
