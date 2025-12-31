@@ -57,10 +57,10 @@ get_profiles_ini() {
 get_profile_groups_db() {
     local os="$1"
     local create="${2:-false}"
-    local profiles_dir
-    profiles_dir=$(get_firefox_dir "$os")
+    local firefox_dir
+    firefox_dir=$(get_firefox_dir "$os")
 
-    local db_dir="$profiles_dir/Profile Groups"
+    local db_dir="$firefox_dir/Profile Groups"
 
     # Check for existing database
     if [[ -d "$db_dir" ]]; then
@@ -74,7 +74,7 @@ get_profile_groups_db() {
 
     # Create new database if requested
     if [[ "$create" == "true" ]] && command -v sqlite3 &>/dev/null; then
-        mkdir -p "$profiles_dir"
+        mkdir -p "$firefox_dir"
         mkdir -p "$db_dir"
 
         # Generate random 8-char hex filename like Firefox does
@@ -104,6 +104,17 @@ get_profile_groups_db() {
         " 2>/dev/null
 
         if [[ -f "$db_file" ]]; then
+            # Create profiles.ini to link Firefox to our database
+            local profiles_ini="$firefox_dir/profiles.ini"
+            if [[ ! -f "$profiles_ini" ]]; then
+                cat > "$profiles_ini" << EOF
+[General]
+StartWithLastProfile=1
+Version=2
+
+EOF
+                info "Created profiles.ini with StoreID=$db_name"
+            fi
             echo "$db_file"
             return 0
         fi
@@ -348,6 +359,27 @@ create_profile_new() {
 
     # Insert into database
     if sqlite3 "$db_file" "INSERT INTO Profiles (id, path, name, avatar, themeId, themeFg, themeBg) VALUES ($next_id, '$dir_name', '$name', '$avatar', '$theme_id', '$theme_fg', '$theme_bg')" 2>/dev/null; then
+        # Also add entry to profiles.ini so Firefox knows about our database
+        local profiles_ini="$profiles_dir/profiles.ini"
+        local db_name
+        db_name=$(basename "$db_file" .sqlite)
+
+        # Count existing profile sections to get next index
+        local profile_index=0
+        if [[ -f "$profiles_ini" ]]; then
+            profile_index=$(grep -c '^\[Profile' "$profiles_ini" 2>/dev/null || echo "0")
+        fi
+
+        # Append profile entry
+        cat >> "$profiles_ini" << EOF
+[Profile${profile_index}]
+Name=$name
+IsRelative=1
+Path=$dir_name
+StoreID=$db_name
+ShowSelector=1
+
+EOF
         echo "$profile_path"
         return 0
     else
