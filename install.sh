@@ -17,8 +17,151 @@ info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
+usage() {
+    cat << EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Install Foxhole privacy-hardened Firefox configuration.
+
+Options:
+  --reset     Reset Firefox to fresh state (deletes all profiles and settings)
+  --help      Show this help message
+
+Examples:
+  $(basename "$0")           # Install Foxhole to Firefox profiles
+  $(basename "$0") --reset   # Reset Firefox, then install Foxhole
+EOF
+    exit 0
+}
+
+# Reset Firefox to fresh state
+reset_firefox() {
+    local os="$1"
+    local firefox_dir cache_dir
+
+    firefox_dir=$(get_firefox_dir "$os")
+    case "$os" in
+        linux)  cache_dir="$HOME/.cache/mozilla" ;;
+        macos)  cache_dir="$HOME/Library/Caches/Firefox" ;;
+    esac
+
+    echo ""
+    warn "This will DELETE all Firefox data including:"
+    warn "  - All profiles and their data"
+    warn "  - Bookmarks, history, passwords"
+    warn "  - Extensions and settings"
+    warn "  - Cache"
+    echo ""
+    warn "Firefox directory: $firefox_dir"
+    warn "Cache directory: $cache_dir"
+    echo ""
+    echo -n "Are you sure you want to reset Firefox? Type 'yes' to confirm: "
+    local confirm
+    prompt confirm
+    if [[ "$confirm" != "yes" ]]; then
+        info "Reset cancelled"
+        exit 0
+    fi
+
+    # Check if Firefox is running
+    if pgrep -x "firefox" > /dev/null 2>&1 || pgrep -x "firefox-bin" > /dev/null 2>&1; then
+        error "Firefox is running. Please close Firefox before resetting."
+    fi
+
+    info "Resetting Firefox..."
+
+    if [[ -d "$firefox_dir" ]]; then
+        rm -rf "$firefox_dir"
+        info "Deleted $firefox_dir"
+    fi
+
+    if [[ -d "$cache_dir" ]]; then
+        rm -rf "$cache_dir"
+        info "Deleted $cache_dir"
+    fi
+
+    info "Firefox reset complete"
+    echo ""
+}
+
 # Portable lowercase conversion (macOS has Bash 3.2 which lacks ${var,,})
 to_lower() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
+
+# Calculate the Firefox Install hash using CityHash64
+# This matches what Firefox computes from the install path
+# Uses Perl for portability (available by default on Linux and macOS)
+calculate_install_hash() {
+    local install_path="$1"
+
+    perl -e '
+use strict;
+use warnings;
+no warnings "portable";
+my ($k0,$k1,$k2)=(0xc3a5c85c97cb3127,0xb492b66fbe98f273,0x9ae16a3b2f90404f);
+sub add64{my($a,$b)=@_;my $lo=($a&0xFFFFFFFF)+($b&0xFFFFFFFF);my $hi=(($a>>32)&0xFFFFFFFF)+(($b>>32)&0xFFFFFFFF)+($lo>>32);($lo&0xFFFFFFFF)|(($hi&0xFFFFFFFF)<<32)}
+sub sub64{my($a,$b)=@_;add64($a,add64(~$b&0xFFFFFFFFFFFFFFFF,1))}
+sub mul64{my($a,$b)=@_;my@a=($a&0xFFFF,($a>>16)&0xFFFF,($a>>32)&0xFFFF,($a>>48)&0xFFFF);my@b=($b&0xFFFF,($b>>16)&0xFFFF,($b>>32)&0xFFFF,($b>>48)&0xFFFF);my($r0,$r1,$r2,$r3)=($a[0]*$b[0],$a[0]*$b[1]+$a[1]*$b[0],$a[0]*$b[2]+$a[1]*$b[1]+$a[2]*$b[0],$a[0]*$b[3]+$a[1]*$b[2]+$a[2]*$b[1]+$a[3]*$b[0]);my$c;$c=int($r0/0x10000);$r0&=0xFFFF;$r1+=$c;$c=int($r1/0x10000);$r1&=0xFFFF;$r2+=$c;$c=int($r2/0x10000);$r2&=0xFFFF;$r3+=$c;$r3&=0xFFFF;$r0|($r1<<16)|($r2<<32)|($r3<<48)}
+sub rot{my($v,$s)=@_;$s?((($v>>$s)|(($v<<(64-$s))&0xFFFFFFFFFFFFFFFF))&0xFFFFFFFFFFFFFFFF):$v}
+sub mix{$_[0]^($_[0]>>47)}
+sub ld64{my($b,$o)=@_;$o//=0;my@c=unpack("C8",substr($b,$o,8));$c[0]|($c[1]<<8)|($c[2]<<16)|($c[3]<<24)|($c[4]<<32)|($c[5]<<40)|($c[6]<<48)|($c[7]<<56)}
+sub ld32{my($b,$o)=@_;$o//=0;my@c=unpack("C4",substr($b,$o,4));$c[0]|($c[1]<<8)|($c[2]<<16)|($c[3]<<24)}
+sub h128{my($l,$h)=@_;my$m=0x9ddfea08eb382d69;my$a=mul64($l^$h,$m);$a^=($a>>47);my$b=mul64($h^$a,$m);$b^=($b>>47);mul64($b,$m)}
+sub h16{h128($_[0],$_[1])}
+sub h16m{my($u,$v,$m)=@_;my$a=mul64($u^$v,$m);$a^=($a>>47);my$b=mul64($v^$a,$m);$b^=($b>>47);mul64($b,$m)}
+sub h0t16{my($s,$n)=@_;return h16(ld64($s,0),rot(add64(ld64($s,$n-8),$n),$n))^ld64($s,$n-8)if$n>8;return h16(add64($n,ld32($s,0)<<3),ld32($s,$n-4))if$n>=4;if($n>0){my@b=unpack("C*",substr($s,0,$n));my($y,$z)=($b[0]+($b[$n>>1]<<8),$n+($b[$n-1]<<2));return mul64(mix(mul64($y,$k2)^mul64($z,0xc949d7c7509e6557)),$k2)}$k2}
+sub h17t32{my($s,$n)=@_;my($a,$b,$c,$d)=(mul64(ld64($s,0),$k1),ld64($s,8),mul64(ld64($s,$n-8),$k2),mul64(ld64($s,$n-16),$k0));h16(add64(add64(rot(sub64($a,$b),43),rot($c,30)),$d),add64(sub64(add64($a,rot($b^0xc949d7c7509e6557,20)),$c),$n))}
+sub h33t64{my($s,$n)=@_;my$z=ld64($s,24);my$a=add64(ld64($s,0),mul64(add64($n,ld64($s,$n-16)),$k0));my$b=rot(add64($a,$z),52);my$c=rot($a,37);$a=add64($a,ld64($s,8));$c=add64($c,rot($a,7));$a=add64($a,ld64($s,16));my($vf,$vs)=(add64($a,$z),add64(add64($b,rot($a,31)),$c));$a=add64(ld64($s,16),ld64($s,$n-32));$z=ld64($s,$n-8);$b=rot(add64($a,$z),52);$c=rot($a,37);$a=add64($a,ld64($s,$n-24));$c=add64($c,rot($a,7));$a=add64($a,ld64($s,$n-16));my($wf,$ws)=(add64($a,$z),add64(add64($b,rot($a,31)),$c));my$r=mix(add64(mul64(add64($vf,$ws),$k2),mul64(add64($wf,$vs),$k0)));mul64(mix(add64(mul64($r,$k0),$vs)),$k2)}
+sub wh32{my($s,$o,$a,$b)=@_;my($w,$x,$y,$z)=(ld64($s,$o),ld64($s,$o+8),ld64($s,$o+16),ld64($s,$o+24));$a=add64($a,$w);$b=rot(add64(add64($b,$a),$z),21);my$c=$a;$a=add64(add64($a,$x),$y);$b=add64($b,rot($a,44));(add64($a,$z),add64($b,$c))}
+sub city64{my$s=shift;my$n=length($s);return h0t16($s,$n)if$n<=16;return h17t32($s,$n)if$n<=32;return h33t64($s,$n)if$n<=64;my$x=ld64($s,$n-40);my$y=add64(ld64($s,$n-16),ld64($s,$n-56));my$z=h16(add64(ld64($s,$n-48),$n),ld64($s,$n-24));my@v=wh32($s,$n-64,$n,$z);my@w=wh32($s,$n-32,add64($y,$k1),$x);$x=add64(mul64($x,$k1),ld64($s,0));my$o=0;while($o+64<=$n){$x=mul64(rot(add64(add64($x,$y),$v[0]),37),$k1);$y=mul64(rot(add64($v[1],$w[1]),42),$k1);$x^=$w[1];$y=add64($y,add64($v[0],ld64($s,$o+40)));$z=mul64(rot(add64($z,$w[0]),33),$k1);@v=wh32($s,$o,mul64($v[1],$k1),add64($x,$w[0]));@w=wh32($s,$o+32,add64($z,$w[1]),add64($y,ld64($s,$o+16)));($z,$x)=($x,$z);$o+=64}h16m(add64(h16($v[0],$w[0]),add64(mul64(mix($y),$k1),$z)),add64(h16($v[1],$w[1]),$x),add64($k1,($n&0xFF)<<1))}
+my$p=$ARGV[0];my$u="";$u.=chr(ord($_)&0xFF).chr(0)for split//,$p;printf"%016X\n",city64($u);
+' "$install_path"
+}
+
+# Get Firefox installation path (where firefox binary lives)
+get_firefox_install_path() {
+    local os="$1"
+    case "$os" in
+        linux)
+            if [[ -d "/usr/lib64/firefox" ]]; then
+                echo "/usr/lib64/firefox"
+            elif [[ -d "/usr/lib/firefox" ]]; then
+                echo "/usr/lib/firefox"
+            fi
+            ;;
+        macos)
+            echo "/Applications/Firefox.app/Contents/MacOS"
+            ;;
+    esac
+}
+
+# Get or compute Install section ID
+# First checks if Firefox has already created one, otherwise computes it
+get_install_id() {
+    local os="$1"
+    local firefox_dir
+    firefox_dir=$(get_firefox_dir "$os")
+    local installs_ini="$firefox_dir/installs.ini"
+
+    # Check if Firefox has already created an Install section
+    if [[ -f "$installs_ini" ]]; then
+        local existing_id
+        existing_id=$(grep '^\[[A-F0-9]\{16\}\]' "$installs_ini" 2>/dev/null | head -1 | sed 's/^\[//;s/\]$//')
+        if [[ -n "$existing_id" ]]; then
+            echo "$existing_id"
+            return 0
+        fi
+    fi
+
+    # Compute the Install ID from Firefox install path using CityHash64
+    local install_path
+    install_path=$(get_firefox_install_path "$os")
+    if [[ -n "$install_path" ]]; then
+        calculate_install_hash "$install_path"
+        return 0
+    fi
+
+    error "Could not determine Firefox install path"
+}
 
 # Read from terminal even when piped
 prompt() {
@@ -43,17 +186,9 @@ get_firefox_dir() {
     esac
 }
 
-# Get profiles.ini path
-get_profiles_ini() {
-    local os="$1"
-    case "$os" in
-        linux)  echo "$HOME/.mozilla/firefox/profiles.ini" ;;
-        macos)  echo "$HOME/Library/Application Support/Firefox/profiles.ini" ;;
-    esac
-}
-
 # Get Profile Groups database path (Firefox 128+ new profile system)
 # If create=true and database doesn't exist, creates the directory structure and database
+# Prefers the database referenced in profiles.ini if multiple exist
 get_profile_groups_db() {
     local os="$1"
     local create="${2:-false}"
@@ -61,8 +196,19 @@ get_profile_groups_db() {
     firefox_dir=$(get_firefox_dir "$os")
 
     local db_dir="$firefox_dir/Profile Groups"
+    local profiles_ini="$firefox_dir/profiles.ini"
 
-    # Check for existing database
+    # If profiles.ini exists, try to find the database it references via StoreID
+    if [[ -f "$profiles_ini" ]]; then
+        local store_id
+        store_id=$(grep -m1 "^StoreID=" "$profiles_ini" 2>/dev/null | cut -d= -f2)
+        if [[ -n "$store_id" && -f "$db_dir/${store_id}.sqlite" ]]; then
+            echo "$db_dir/${store_id}.sqlite"
+            return 0
+        fi
+    fi
+
+    # Check for any existing database
     if [[ -d "$db_dir" ]]; then
         local db_file
         db_file=$(find "$db_dir" -maxdepth 1 -name "*.sqlite" 2>/dev/null | head -1)
@@ -74,8 +220,8 @@ get_profile_groups_db() {
 
     # Create new database if requested
     if [[ "$create" == "true" ]] && command -v sqlite3 &>/dev/null; then
-        mkdir -p "$firefox_dir"
-        mkdir -p "$db_dir"
+        mkdir -p "$firefox_dir" || { warn "Failed to create $firefox_dir"; return 1; }
+        mkdir -p "$db_dir" || { warn "Failed to create $db_dir"; return 1; }
 
         # Generate random 8-char hex filename like Firefox does
         local db_name
@@ -83,7 +229,7 @@ get_profile_groups_db() {
         local db_file="$db_dir/${db_name}.sqlite"
 
         # Create database with Firefox's schema
-        sqlite3 "$db_file" "
+        if ! sqlite3 "$db_file" "
             CREATE TABLE IF NOT EXISTS \"Profiles\" (
                 id      INTEGER NOT NULL,
                 path    TEXT NOT NULL UNIQUE,
@@ -101,11 +247,13 @@ get_profile_groups_db() {
                 isBoolean INTEGER,
                 PRIMARY KEY(id)
             );
-        " 2>/dev/null
+        "; then
+            warn "Failed to create database schema"
+            return 1
+        fi
 
         if [[ -f "$db_file" ]]; then
             # Create profiles.ini to link Firefox to our database
-            local profiles_ini="$firefox_dir/profiles.ini"
             if [[ ! -f "$profiles_ini" ]]; then
                 cat > "$profiles_ini" << EOF
 [General]
@@ -113,7 +261,6 @@ StartWithLastProfile=1
 Version=2
 
 EOF
-                info "Created profiles.ini with StoreID=$db_name"
             fi
             echo "$db_file"
             return 0
@@ -123,9 +270,9 @@ EOF
     return 1
 }
 
-# Find profile path by name from Profile Groups SQLite database (Firefox 128+)
+# Find profile path by name (case-insensitive) from Profile Groups SQLite database
 # Returns the full path to the profile directory, or empty if not found
-find_profile_by_name_sqlite() {
+find_profile_by_name() {
     local os="$1"
     local name="$2"
     local profiles_dir db_file
@@ -150,8 +297,8 @@ find_profile_by_name_sqlite() {
     fi
 }
 
-# List all profile names from Profile Groups SQLite database (Firefox 128+)
-list_profile_names_sqlite() {
+# List all profile names from Profile Groups SQLite database
+list_profile_names() {
     local os="$1"
     local db_file
 
@@ -162,98 +309,6 @@ list_profile_names_sqlite() {
     fi
 
     sqlite3 "$db_file" "SELECT name FROM Profiles ORDER BY id" 2>/dev/null
-}
-
-# Find profile path by name (case-insensitive)
-# Tries Profile Groups SQLite database first (Firefox 128+), then falls back to profiles.ini
-# Returns the full path to the profile directory, or empty if not found
-find_profile_by_name() {
-    local os="$1"
-    local name="$2"
-    local result
-
-    # Try Profile Groups SQLite database first (Firefox 128+)
-    result=$(find_profile_by_name_sqlite "$os" "$name")
-    if [[ -n "$result" ]]; then
-        echo "$result"
-        return
-    fi
-
-    # Fall back to profiles.ini
-    local profiles_ini profiles_dir
-    profiles_ini=$(get_profiles_ini "$os")
-    profiles_dir=$(get_firefox_dir "$os")
-
-    if [[ ! -f "$profiles_ini" ]]; then
-        return
-    fi
-
-    # Parse profiles.ini to find profile with matching name (case-insensitive)
-    local current_section="" current_name="" current_path="" is_relative=""
-    local name_lower
-    name_lower=$(to_lower "$name")
-
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Section header
-        if [[ "$line" =~ ^\[.*\]$ ]]; then
-            # Check if previous section matched (case-insensitive)
-            if [[ "$(to_lower "$current_name")" == "$name_lower" && -n "$current_path" ]]; then
-                if [[ "$is_relative" == "1" ]]; then
-                    echo "$profiles_dir/$current_path"
-                else
-                    echo "$current_path"
-                fi
-                return
-            fi
-            current_section="$line"
-            current_name=""
-            current_path=""
-            is_relative=""
-        elif [[ "$line" =~ ^Name=(.*)$ ]]; then
-            current_name="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^Path=(.*)$ ]]; then
-            current_path="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^IsRelative=(.*)$ ]]; then
-            is_relative="${BASH_REMATCH[1]}"
-        fi
-    done < "$profiles_ini"
-
-    # Check last section (case-insensitive)
-    if [[ "$(to_lower "$current_name")" == "$name_lower" && -n "$current_path" ]]; then
-        if [[ "$is_relative" == "1" ]]; then
-            echo "$profiles_dir/$current_path"
-        else
-            echo "$current_path"
-        fi
-    fi
-}
-
-# List all profile names
-# Tries Profile Groups SQLite database first (Firefox 128+), then falls back to profiles.ini
-list_profile_names() {
-    local os="$1"
-    local result
-
-    # Try Profile Groups SQLite database first (Firefox 128+)
-    result=$(list_profile_names_sqlite "$os")
-    if [[ -n "$result" ]]; then
-        echo "$result"
-        return
-    fi
-
-    # Fall back to profiles.ini
-    local profiles_ini
-    profiles_ini=$(get_profiles_ini "$os")
-
-    if [[ ! -f "$profiles_ini" ]]; then
-        return
-    fi
-
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ "$line" =~ ^Name=(.*)$ ]]; then
-            echo "${BASH_REMATCH[1]}"
-        fi
-    done < "$profiles_ini"
 }
 
 # Find default Firefox profile (fallback)
@@ -286,10 +341,10 @@ random_hash() {
     LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 8
 }
 
-# Create a profile in Firefox 128+ new profile system (Profile Groups SQLite database)
+# Create a profile in Firefox 128+ Profile Groups SQLite database
 # Returns the full path to the created profile directory
 # Creates the database if it doesn't exist (for fresh Firefox installs)
-create_profile_new() {
+create_profile() {
     local os="$1"
     local name="$2"
     local profiles_dir db_file
@@ -299,7 +354,6 @@ create_profile_new() {
     fi
 
     profiles_dir=$(get_firefox_dir "$os")
-    # Create database if it doesn't exist
     db_file=$(get_profile_groups_db "$os" "true")
 
     if [[ -z "$db_file" ]]; then
@@ -321,33 +375,31 @@ create_profile_new() {
     dir_name="${hash}.${name}"
     profile_path="$profiles_dir/$dir_name"
 
-    # Create directory
     mkdir -p "$profile_path"
 
-    # Pick avatar and theme colors per profile
+    # Profile appearance settings
+    # Note: These colors appear on the profile avatar/icon in the profile selector.
+    # Full browser chrome theming requires Firefox's signed theme extensions.
     local avatar theme_id theme_fg theme_bg
+    theme_id="default-theme@mozilla.org"
     case "$(to_lower "$name")" in
         default|primary)
             avatar="default-favicon"
-            theme_id="default-theme@mozilla.org"
             theme_fg="rgb(21,20,26)"
             theme_bg="rgb(240,240,244)"
             ;;
         relaxed)
             avatar="diamond"
-            theme_id="default-theme@mozilla.org"
             theme_fg="rgb(0,119,0)"
             theme_bg="rgb(225,255,225)"
             ;;
         ephemeral)
             avatar="history"
-            theme_id="default-theme@mozilla.org"
             theme_fg="rgb(0,83,203)"
             theme_bg="rgb(226,247,255)"
             ;;
         *)
             avatar="default-favicon"
-            theme_id="default-theme@mozilla.org"
             theme_fg="rgb(21,20,26)"
             theme_bg="rgb(240,240,244)"
             ;;
@@ -355,47 +407,62 @@ create_profile_new() {
 
     # Get next ID
     local next_id
-    next_id=$(sqlite3 "$db_file" "SELECT COALESCE(MAX(id), 0) + 1 FROM Profiles" 2>/dev/null)
+    next_id=$(sqlite3 "$db_file" "SELECT COALESCE(MAX(id), 0) + 1 FROM Profiles")
+    if [[ -z "$next_id" ]]; then
+        next_id=1
+    fi
 
     # Insert into database
-    if sqlite3 "$db_file" "INSERT INTO Profiles (id, path, name, avatar, themeId, themeFg, themeBg) VALUES ($next_id, '$dir_name', '$name', '$avatar', '$theme_id', '$theme_fg', '$theme_bg')" 2>/dev/null; then
-        # Also add entry to profiles.ini so Firefox knows about our database
-        local profiles_ini="$profiles_dir/profiles.ini"
-        local db_name
-        db_name=$(basename "$db_file" .sqlite)
+    if ! sqlite3 "$db_file" "INSERT INTO Profiles (id, path, name, avatar, themeId, themeFg, themeBg) VALUES ($next_id, '$dir_name', '$name', '$avatar', '$theme_id', '$theme_fg', '$theme_bg')" 2>&1; then
+        warn "Failed to insert profile '$name' into database"
+        rm -rf "$profile_path"
+        return 1
+    fi
 
-        # Count existing profile sections to get next index
-        local profile_index=0
-        if [[ -f "$profiles_ini" ]]; then
-            profile_index=$(grep -c '^\[Profile' "$profiles_ini" 2>/dev/null || echo "0")
+    # Add entry to profiles.ini so Firefox knows about our database
+    local profiles_ini="$profiles_dir/profiles.ini"
+    local db_name
+    db_name=$(basename "$db_file" .sqlite)
+
+    # Count existing profile sections to get next index
+    local profile_index=0
+    if [[ -f "$profiles_ini" ]]; then
+        profile_index=$(grep -c '^\[Profile' "$profiles_ini" 2>/dev/null) || profile_index=0
+    fi
+
+    # For the first profile, set up Install section
+    if [[ "$profile_index" -eq 0 ]]; then
+        local install_id
+        install_id=$(get_install_id "$os")
+        if [[ -n "$install_id" ]]; then
+            cat > "$profiles_dir/installs.ini" << EOF
+[$install_id]
+Default=$dir_name
+Locked=1
+EOF
+            cat >> "$profiles_ini" << EOF
+[Install${install_id}]
+Default=$dir_name
+Locked=1
+
+EOF
+            info "Install ID: $install_id" >&2
         fi
+    fi
 
-        # Append profile entry
-        cat >> "$profiles_ini" << EOF
+    # Append profile entry
+    cat >> "$profiles_ini" << EOF
 [Profile${profile_index}]
 Name=$name
 IsRelative=1
 Path=$dir_name
 StoreID=$db_name
 ShowSelector=1
+$([[ "$profile_index" -eq 0 ]] && echo "Default=1")
 
 EOF
-        echo "$profile_path"
-        return 0
-    else
-        warn "Failed to insert profile '$name' into database"
-        rm -rf "$profile_path"
-        return 1
-    fi
-}
-
-# Create a profile in the Profile Groups database
-# Requires Firefox 128+ with the new profile system and sqlite3
-create_profile() {
-    local os="$1"
-    local name="$2"
-
-    create_profile_new "$os" "$name"
+    echo "$profile_path"
+    return 0
 }
 
 # Get Firefox distribution directory
@@ -515,9 +582,32 @@ install_policies() {
 
 # Main installation
 main() {
+    local do_reset=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --reset)
+                do_reset=true
+                shift
+                ;;
+            --help|-h)
+                usage
+                ;;
+            *)
+                error "Unknown option: $1. Use --help for usage."
+                ;;
+        esac
+    done
+
     local os
     os=$(detect_os)
     info "Detected OS: $os"
+
+    # Handle reset if requested
+    if $do_reset; then
+        reset_firefox "$os"
+    fi
 
     # Check for local files first
     local source_dir=""
@@ -737,7 +827,6 @@ main() {
 
     echo ""
     info "Installation complete!"
-    info "Restart Firefox and visit about:policies to verify"
 }
 
 main "$@"

@@ -153,7 +153,7 @@
           "Name": "Kagi",
           "URLTemplate": "https://kagi.com/search?q={searchTerms}",
           "Method": "GET",
-          "IconURL": "https://kagi.com/favicon.ico",
+          "IconURL": "https://kagi.com/asset/a9c7951/kagi_assets/logos/yellow_1.png",
           "Alias": "@k",
           "Description": "Kagi Search",
           "SuggestURLTemplate": "https://kagi.com/api/autosuggest?q={searchTerms}"
@@ -166,6 +166,30 @@
     "Preferences": {
       "browser.profiles.enabled": {
         "Value": true,
+        "Status": "default"
+      },
+      "browser.search.hiddenOneOffs": {
+        "Value": "Amazon.com,eBay,Google,Bing,DuckDuckGo,Wikipedia (en)",
+        "Status": "locked"
+      },
+      "browser.urlbar.suggest.engines": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.urlbar.oneOffSearches": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.urlbar.shortcuts.bookmarks": {
+        "Value": true,
+        "Status": "default"
+      },
+      "browser.urlbar.shortcuts.tabs": {
+        "Value": true,
+        "Status": "default"
+      },
+      "browser.urlbar.shortcuts.history": {
+        "Value": false,
         "Status": "default"
       }
     }
