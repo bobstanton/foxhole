@@ -22,10 +22,25 @@
     "CaptivePortal": false,
     "HttpsOnlyMode": "enabled",
     "GenerativeAI": {
-      "Enabled": false
+      "Enabled": false,
+      "Chatbot": false,
+      "LinkPreviews": false,
+      "TabGroups": false,
+      "Locked": true
+    },
+    "FirefoxSuggest": {
+      "WebSuggestions": false,
+      "SponsoredSuggestions": false,
+      "ImproveSuggest": false,
+      "Locked": true
     },
     "NoDefaultBookmarks": true,
+    "Homepage": {
+      "URL": "about:blank",
+      "Locked": false
+    },
     "OfferToSaveLogins": false,
+    "OfferToSaveLoginsDefault": false,
     "PasswordManagerEnabled": false,
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
@@ -90,27 +105,33 @@
       },
       "uBlock0@raymondhill.net": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi",
+        "allowed_private_browsing": true
       },
       "@testpilot-containers": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/multi-account-containers/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/multi-account-containers/latest.xpi",
+        "allowed_private_browsing": true
       },
       "{74145f27-f039-47ce-a470-a662b129930a}": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/clearurls/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/clearurls/latest.xpi",
+        "allowed_private_browsing": true
       },
       "search@kagi.com": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/kagi-search-for-firefox/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/kagi-search-for-firefox/latest.xpi",
+        "allowed_private_browsing": true
       },
       "sponsorBlocker@ajay.app": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/sponsorblock/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/sponsorblock/latest.xpi",
+        "allowed_private_browsing": true
       },
       "{d634138d-c276-4fc8-924b-40a0ea21d284}": {
         "installation_mode": "normal_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/1password-x-password-manager/latest.xpi"
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/1password-x-password-manager/latest.xpi",
+        "allowed_private_browsing": true
       }
     },
     "SearchEngines": {

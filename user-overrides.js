@@ -212,8 +212,9 @@ user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
 user_pref("browser.aboutwelcome.enabled", false);
 // Default browser nagging
 user_pref("browser.defaultbrowser.notificationbar", false);
-// New Tab weather widget
+// New Tab weather widget (Accuweather)
 user_pref("browser.newtabpage.activity-stream.showWeather", false);
+user_pref("browser.newtabpage.activity-stream.system.showWeather", false);
 // Personalized extension recommendations
 user_pref("browser.discovery.enabled", false);
 
@@ -302,8 +303,11 @@ user_pref("browser.bookmarks.max_backups", 2);
 
 // Save downloads to most recently used folder
 user_pref("browser.download.folderList", 2);
-// Disable Activity Stream and default browser checks
+// Homepage and new tab
+user_pref("browser.startup.homepage", "about:blank");
 user_pref("browser.newtabpage.activity-stream.enabled", false);
+// Clear distribution pinned sites (e.g. Fedora start page)
+user_pref("browser.newtabpage.pinned", "[]");
 user_pref("browser.shell.checkDefaultBrowser", false);
 
 // Keep visited links for now. Uncomment for additional anti-fingerprinting protection

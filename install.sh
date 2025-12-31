@@ -3,7 +3,6 @@ set -euo pipefail
 
 REPO="bobstanton/foxhole"
 SCRIPT_DIR=""
-SQLITE_WARNING_SHOWN=""
 if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
 fi
@@ -85,12 +84,6 @@ find_profile_by_name_sqlite() {
     fi
 
     if ! command -v sqlite3 &>/dev/null; then
-        if [[ -z "$SQLITE_WARNING_SHOWN" ]]; then
-            warn "sqlite3 not found. Install it to enable Firefox 128+ profile detection."
-            warn "  Fedora/RHEL: sudo dnf install sqlite"
-            warn "  Ubuntu/Debian: sudo apt install sqlite3"
-            SQLITE_WARNING_SHOWN=1
-        fi
         return
     fi
 
@@ -372,6 +365,18 @@ main() {
 
         download_release "$tmp_dir"
         source_dir="$tmp_dir"
+    fi
+
+    # Ensure sqlite3 is available if Firefox 128+ profile system is detected
+    local profile_groups_db
+    profile_groups_db=$(get_profile_groups_db "$os")
+    if [[ -n "$profile_groups_db" ]] && ! command -v sqlite3 &>/dev/null; then
+        error "Firefox 128+ profile system detected but sqlite3 is not installed.
+       Install it to enable profile detection:
+         Fedora/RHEL: sudo dnf install sqlite
+         Ubuntu/Debian: sudo apt install sqlite3
+         Arch: sudo pacman -S sqlite
+         macOS: sqlite3 is included by default"
     fi
 
     # Check for named profiles (Default/Primary, Relaxed, Ephemeral)

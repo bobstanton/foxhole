@@ -210,16 +210,20 @@ user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
 user_pref("browser.aboutwelcome.enabled", false);
 // Default browser nagging
 user_pref("browser.defaultbrowser.notificationbar", false);
-// New Tab weather widget
+// New Tab weather widget (Accuweather)
 user_pref("browser.newtabpage.activity-stream.showWeather", false);
+user_pref("browser.newtabpage.activity-stream.system.showWeather", false);
 // Personalized extension recommendations
 user_pref("browser.discovery.enabled", false);
 // Pocket
 user_pref("browser.pocket.enabled", false);
 user_pref("extensions.pocket.enabled", false);
 user_pref("browser.newtabpage.activity-stream.feeds.section.topstories", false);
-// Disable Activity Stream
+// Homepage and new tab
+user_pref("browser.startup.homepage", "about:blank");
 user_pref("browser.newtabpage.activity-stream.enabled", false);
+// Clear distribution pinned sites (e.g. Fedora start page)
+user_pref("browser.newtabpage.pinned", "[]");
 // Default browser check
 user_pref("browser.shell.checkDefaultBrowser", false);
 
