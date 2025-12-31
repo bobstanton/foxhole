@@ -1,0 +1,183 @@
+name: Foxhole Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'user-overrides*.js'
+      - 'policies.json'
+      - '.github/workflows/build.yml'
+  schedule:
+    # Check for arkenfox updates monthly (1st of each month at midnight)
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      arkenfox_version:
+        description: 'Arkenfox version/tag (leave empty for latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Get arkenfox version to use
+        id: arkenfox-version
+        run: |
+          if [ -n "${{ github.event.inputs.arkenfox_version }}" ]; then
+            echo "version=${{ github.event.inputs.arkenfox_version }}" >> $GITHUB_OUTPUT
+          else
+            # Get latest release tag
+            LATEST=$(curl -s https://api.github.com/repos/arkenfox/user.js/releases/latest | jq -r .tag_name)
+            echo "version=$LATEST" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if release already exists for this arkenfox version
+        id: check-release
+        run: |
+          # Check if any release exists with this arkenfox version
+          EXISTING=$(gh release list --limit 100 | grep -F "${{ steps.arkenfox-version.outputs.version }}" || true)
+          if [ -n "$EXISTING" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Release for arkenfox ${{ steps.arkenfox-version.outputs.version }} already exists, skipping scheduled build"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone arkenfox user.js
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ steps.arkenfox-version.outputs.version }} \
+            https://github.com/arkenfox/user.js.git arkenfox
+          echo "Cloned arkenfox version: ${{ steps.arkenfox-version.outputs.version }}"
+
+      - name: Build default profile (user-overrides.js)
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          mkdir -p dist/default
+          cp arkenfox/user.js arkenfox/updater.sh arkenfox/prefsCleaner.sh dist/default/
+          cp user-overrides.js dist/default/
+          cp policies.json dist/default/
+          cd dist/default
+          chmod +x updater.sh
+          ./updater.sh -s -u
+          rm -f updater.sh prefsCleaner.sh user-overrides.js
+          echo "Default profile built successfully"
+
+      - name: Build relaxed profile (user-overrides-relaxed.js)
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          mkdir -p dist/relaxed
+          cp arkenfox/user.js arkenfox/updater.sh arkenfox/prefsCleaner.sh dist/relaxed/
+          cp user-overrides-relaxed.js dist/relaxed/user-overrides.js
+          cp policies.json dist/relaxed/
+          cd dist/relaxed
+          chmod +x updater.sh
+          ./updater.sh -s -u
+          rm -f updater.sh prefsCleaner.sh user-overrides.js
+          echo "Relaxed profile built successfully"
+
+      - name: Build ephemeral profile (based on default + ephemeral overrides)
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          mkdir -p dist/ephemeral
+          cp dist/default/user.js dist/ephemeral/
+          cp dist/default/policies.json dist/ephemeral/
+          echo "" >> dist/ephemeral/user.js
+          echo "/* ephemeral overrides */" >> dist/ephemeral/user.js
+          cat user-overrides-ephemeral.js >> dist/ephemeral/user.js
+          echo "Ephemeral profile built successfully"
+
+      - name: Create version info
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          cat > dist/version.txt << EOF
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Arkenfox Version: ${{ steps.arkenfox-version.outputs.version }}
+          Commit: ${{ github.sha }}
+          EOF
+
+      - name: Upload default profile artifact
+        if: steps.check-release.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: foxhole-default
+          path: |
+            dist/default/user.js
+            dist/default/policies.json
+            dist/version.txt
+
+      - name: Upload relaxed profile artifact
+        if: steps.check-release.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: foxhole-relaxed
+          path: |
+            dist/relaxed/user.js
+            dist/relaxed/policies.json
+            dist/version.txt
+
+      - name: Upload ephemeral profile artifact
+        if: steps.check-release.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: foxhole-ephemeral
+          path: |
+            dist/ephemeral/user.js
+            dist/ephemeral/policies.json
+            dist/version.txt
+
+      - name: Create combined archive
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          cd dist
+          rm -rf */userjs_backups
+          zip -r ../foxhole.zip default relaxed ephemeral version.txt
+
+      - name: Get current date
+        if: steps.check-release.outputs.skip != 'true'
+        id: date
+        run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: steps.check-release.outputs.skip != 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.date.outputs.date }}-${{ steps.arkenfox-version.outputs.version }}
+          name: Foxhole (${{ steps.arkenfox-version.outputs.version }})
+          body: |
+            ## Foxhole
+
+            Privacy-hardened Firefox profiles built from [Arkenfox](https://github.com/arkenfox/user.js) version `${{ steps.arkenfox-version.outputs.version }}`
+
+            ### Profiles Included
+
+            - **default/** - Maximum privacy, may break some sites
+            - **relaxed/** - Balanced for banking/payment sites
+            - **ephemeral/** - Session restore with data cleared on shutdown
+
+            ### Installation
+
+            1. Download and extract the zip
+            2. Copy `user.js` from your chosen profile to your Firefox profile directory
+            3. Copy `policies.json` to Firefox's distribution folder:
+               - **Linux**: `/usr/lib/firefox/distribution/`
+               - **macOS**: `/Applications/Firefox.app/Contents/Resources/distribution/`
+               - **Windows**: `C:\Program Files\Mozilla Firefox\distribution\`
+            4. Restart Firefox and visit `about:policies` to verify
+
+            See the [README](https://github.com/${{ github.repository }}) for detailed instructions.
+          files: foxhole.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
