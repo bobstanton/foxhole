@@ -580,6 +580,67 @@ install_policies() {
     info "Installed policies.json -> $dist_dir"
 }
 
+# Enable extensions in private browsing by updating extension-preferences.json
+# Firefox stores per-extension permissions in this file in the profile directory
+enable_extensions_private_browsing() {
+    local profile_path="$1"
+    local prefs_file="$profile_path/extension-preferences.json"
+
+    # Extension IDs that we install via policy
+    local extension_ids=(
+        "uBlock0@raymondhill.net"
+        "@testpilot-containers"
+        "{74145f27-f039-47ce-a470-a662b129930a}"
+        "search@kagi.com"
+        "sponsorBlocker@ajay.app"
+        "{d634138d-c276-4fc8-924b-40a0ea21d284}"
+    )
+
+    # Build or update the preferences file using Perl with JSON::PP (core module)
+    local json="{}"
+    if [[ -f "$prefs_file" ]]; then
+        json=$(cat "$prefs_file")
+    fi
+
+    # Process all extensions in one Perl call
+    local ids_joined
+    ids_joined=$(printf '%s\n' "${extension_ids[@]}")
+
+    json=$(echo "$json" | perl -MJSON::PP -e '
+        my $json = do { local $/; <STDIN> };
+        my $data = eval { decode_json($json) } // {};
+        my @ids = split /\n/, $ARGV[0];
+        for my $id (@ids) {
+            next unless $id;
+            $data->{$id} //= { permissions => [], origins => [], data_collection => [] };
+            my $perms = $data->{$id}{permissions} // [];
+            unless (grep { $_ eq "internal:privateBrowsingAllowed" } @$perms) {
+                push @$perms, "internal:privateBrowsingAllowed";
+            }
+            $data->{$id}{permissions} = $perms;
+            $data->{$id}{origins} //= [];
+            $data->{$id}{data_collection} //= [];
+        }
+        print encode_json($data);
+    ' "$ids_joined" 2>/dev/null)
+
+    if [[ -z "$json" ]]; then
+        # Fallback if Perl failed - create simple JSON directly
+        warn "Perl JSON processing failed, using fallback"
+        json='{'
+        local first=true
+        for id in "${extension_ids[@]}"; do
+            $first || json+=','
+            first=false
+            json+="\"$id\":{\"permissions\":[\"internal:privateBrowsingAllowed\"],\"origins\":[],\"data_collection\":[]}"
+        done
+        json+='}'
+    fi
+
+    echo "$json" > "$prefs_file"
+    info "Enabled extensions in private browsing -> $prefs_file"
+}
+
 # Main installation
 main() {
     local do_reset=false
@@ -704,6 +765,7 @@ main() {
                 continue
             fi
             install_user_js "$user_js" "$profile_path" "$profile_type"
+            enable_extensions_private_browsing "$profile_path"
         done
     else
         # No named profiles found - show existing and offer options
@@ -783,6 +845,7 @@ main() {
                     continue
                 fi
                 install_user_js "$user_js" "$profile_path" "$profile_type"
+                enable_extensions_private_browsing "$profile_path"
             done
         else
             # Single profile selection
@@ -815,6 +878,7 @@ main() {
             fi
 
             install_user_js "$user_js" "$firefox_profile" "$profile_choice"
+            enable_extensions_private_browsing "$firefox_profile"
         fi
     fi
 
