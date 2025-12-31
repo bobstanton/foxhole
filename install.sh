@@ -53,20 +53,63 @@ get_profiles_ini() {
 }
 
 # Get Profile Groups database path (Firefox 128+ new profile system)
+# If create=true and database doesn't exist, creates the directory structure and database
 get_profile_groups_db() {
     local os="$1"
+    local create="${2:-false}"
     local profiles_dir
     profiles_dir=$(get_profiles_dir "$os")
 
     local db_dir="$profiles_dir/Profile Groups"
+
+    # Check for existing database
     if [[ -d "$db_dir" ]]; then
-        # Find the .sqlite file in Profile Groups directory
         local db_file
         db_file=$(find "$db_dir" -maxdepth 1 -name "*.sqlite" 2>/dev/null | head -1)
         if [[ -n "$db_file" && -f "$db_file" ]]; then
             echo "$db_file"
+            return 0
         fi
     fi
+
+    # Create new database if requested
+    if [[ "$create" == "true" ]] && command -v sqlite3 &>/dev/null; then
+        mkdir -p "$profiles_dir"
+        mkdir -p "$db_dir"
+
+        # Generate random 8-char hex filename like Firefox does
+        local db_name
+        db_name=$(LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 8)
+        local db_file="$db_dir/${db_name}.sqlite"
+
+        # Create database with Firefox's schema
+        sqlite3 "$db_file" "
+            CREATE TABLE IF NOT EXISTS \"Profiles\" (
+                id      INTEGER NOT NULL,
+                path    TEXT NOT NULL UNIQUE,
+                name    TEXT NOT NULL,
+                avatar  TEXT NOT NULL,
+                themeId TEXT NOT NULL,
+                themeFg TEXT NOT NULL,
+                themeBg TEXT NOT NULL,
+                PRIMARY KEY(id)
+            );
+            CREATE TABLE IF NOT EXISTS \"SharedPrefs\" (
+                id        INTEGER NOT NULL,
+                name      TEXT NOT NULL UNIQUE,
+                value     BLOB,
+                isBoolean INTEGER,
+                PRIMARY KEY(id)
+            );
+        " 2>/dev/null
+
+        if [[ -f "$db_file" ]]; then
+            echo "$db_file"
+            return 0
+        fi
+    fi
+
+    return 1
 }
 
 # Find profile path by name from Profile Groups SQLite database (Firefox 128+)
@@ -234,15 +277,21 @@ random_hash() {
 
 # Create a profile in Firefox 128+ new profile system (Profile Groups SQLite database)
 # Returns the full path to the created profile directory
+# Creates the database if it doesn't exist (for fresh Firefox installs)
 create_profile_new() {
     local os="$1"
     local name="$2"
     local profiles_dir db_file
 
-    profiles_dir=$(get_profiles_dir "$os")
-    db_file=$(get_profile_groups_db "$os")
+    if ! command -v sqlite3 &>/dev/null; then
+        return 1
+    fi
 
-    if [[ -z "$db_file" ]] || ! command -v sqlite3 &>/dev/null; then
+    profiles_dir=$(get_profiles_dir "$os")
+    # Create database if it doesn't exist
+    db_file=$(get_profile_groups_db "$os" "true")
+
+    if [[ -z "$db_file" ]]; then
         return 1
     fi
 
@@ -457,12 +506,10 @@ main() {
         source_dir="$tmp_dir"
     fi
 
-    # Ensure sqlite3 is available if Firefox 128+ profile system is detected
-    local profile_groups_db
-    profile_groups_db=$(get_profile_groups_db "$os")
-    if [[ -n "$profile_groups_db" ]] && ! command -v sqlite3 &>/dev/null; then
-        error "Firefox 128+ profile system detected but sqlite3 is not installed.
-       Install it to enable profile detection:
+    # sqlite3 is required for Firefox 128+ profile system
+    if ! command -v sqlite3 &>/dev/null; then
+        error "sqlite3 is required but not installed.
+       Install it to enable profile management:
          Fedora/RHEL: sudo dnf install sqlite
          Ubuntu/Debian: sudo apt install sqlite3
          Arch: sudo pacman -S sqlite
