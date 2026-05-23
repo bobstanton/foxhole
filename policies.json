@@ -5,11 +5,11 @@
       "linux": "sudo cp policies.json /usr/lib/firefox/distribution/policies.json",
       "linux_alt": "sudo cp policies.json /usr/lib64/firefox/distribution/policies.json",
       "flatpak": "mkdir -p ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution && cp policies.json ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution/policies.json",
-      "macos": "sudo cp policies.json /Applications/Firefox.app/Contents/Resources/distribution/policies.json",
+      "macos": "Convert policies.json to a managed plist and install it to /Library/Preferences/org.mozilla.firefox.plist",
       "windows": "copy policies.json \"C:\\Program Files\\Mozilla Firefox\\distribution\\policies.json\""
     },
     "verify": "Restart Firefox and visit about:policies to confirm policies are active",
-    "note": "You may need to create the 'distribution' folder if it doesn't exist"
+    "note": "On Linux/Windows, you may need to create the 'distribution' folder if it doesn't exist"
   },
   "policies": {
     "DisableTelemetry": true,
@@ -17,6 +17,7 @@
     "DisableFirefoxStudies": true,
     "DisableFirefoxAccounts": true,
     "DisablePocket": true,
+    "SkipTermsOfUse": true,
     "DisableSetDesktopBackground": true,
     "DontCheckDefaultBrowser": true,
     "CaptivePortal": false,
@@ -158,6 +159,34 @@
       "browser.profiles.enabled": {
         "Value": true,
         "Status": "default"
+      },
+      "browser.aboutwelcome.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.preonboarding.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.mobileDownloadModal.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "datareporting.healthreport.uploadEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "datareporting.policy.dataSubmissionEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "datareporting.policy.dataSubmissionPolicyBypassNotification": {
+        "Value": true,
+        "Status": "locked"
+      },
+      "datareporting.usage.uploadEnabled": {
+        "Value": false,
+        "Status": "locked"
       },
       "browser.search.hiddenOneOffs": {
         "Value": "Amazon.com,eBay,Google,Bing,DuckDuckGo,Wikipedia (en)",

@@ -105,10 +105,16 @@ user_pref("privacy.query_stripping.enabled.pbmode", true);
 /*** DOWNLOADS ***/
 // Uses the download directory; arkenfox prompts every time
 user_pref("browser.download.useDownloadDir", true);
+// Don't ask what to do with each file type - save automatically
+user_pref("browser.download.always_ask_before_handling_new_types", false);
 // Prevent download history leaking to OS recent files
 user_pref("browser.download.manager.addToRecentDocs", false);
 // Save downloads to most recently used folder
 user_pref("browser.download.folderList", 2);
+
+/*** UI MINIMALISM ***/
+// Hide the bookmarks toolbar to avoid Firefox's empty-toolbar placeholder message
+user_pref("browser.toolbars.bookmarks.visibility", "never");
 
 /*** WEBGL: ALLOW ***/
 // Some banks use WebGL for device fingerprinting as anti-fraud
@@ -176,6 +182,10 @@ user_pref("browser.contentblocking.report.monitor.enabled", false);
 user_pref("browser.contentblocking.report.lockwise.enabled", false);
 // Mobile app promo
 user_pref("browser.contentblocking.report.show_mobile_app", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.enabled", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-a", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-b", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-c", false);
 // Firefox Relay (email masking)
 user_pref("identity.fxaccounts.toolbar.defaultShowRelay", false);
 // Sponsored content on New Tab
@@ -208,6 +218,8 @@ user_pref("extensions.htmlaboutaddons.recommendations.enabled", false);
 user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
 // Onboarding/Welcome screens
 user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.preonboarding.enabled", false);
+user_pref("termsofuse.bypassNotification", true);
 // Default browser nagging
 user_pref("browser.defaultbrowser.notificationbar", false);
 // New Tab weather widget (Accuweather)
@@ -237,6 +249,12 @@ user_pref("browser.urlbar.speculativeConnect.enabled", false);
 user_pref("browser.urlbar.autoFill", false);
 
 // Telemetry
+user_pref("datareporting.healthreport.uploadEnabled", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("datareporting.usage.uploadEnabled", false);
+user_pref("datareporting.healthreport.service.enabled", false);
+user_pref("datareporting.healthreport.service.firstRun", false);
 user_pref("toolkit.telemetry.enabled", false);
 user_pref("toolkit.telemetry.unified", false);
 user_pref("toolkit.telemetry.archive.enabled", false);

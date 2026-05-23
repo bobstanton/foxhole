@@ -158,7 +158,7 @@ The script will:
 - Prompt you to select a profile (default, relaxed, or ephemeral)
 - Detect your OS and Firefox installation
 - Install `user.js` to your Firefox profile
-- Install `policies.json` to the Firefox distribution folder
+- Install enterprise policies to Firefox (`policies.json` on Linux/Windows, `org.mozilla.firefox.plist` on macOS)
 
 ### Manual Installation
 
@@ -201,7 +201,9 @@ mkdir -p ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distrib
 cp policies.json ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution/
 
 # macOS
-sudo cp policies.json /Applications/Firefox.app/Contents/Resources/distribution/
+plutil -extract policies xml1 -o /tmp/org.mozilla.firefox.plist policies.json
+plutil -insert EnterprisePoliciesEnabled -bool YES /tmp/org.mozilla.firefox.plist
+sudo cp /tmp/org.mozilla.firefox.plist /Library/Preferences/org.mozilla.firefox.plist
 
 # Windows (run as Administrator)
 copy policies.json "C:\Program Files\Mozilla Firefox\distribution\"

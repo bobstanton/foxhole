@@ -42,6 +42,8 @@ user_pref("browser.safebrowsing.passwords.enabled", false);
 
 // Uses the download directory; arkenfox prompts every time
 user_pref("browser.download.useDownloadDir", true);
+// Don't ask what to do with each file type - save automatically
+user_pref("browser.download.always_ask_before_handling_new_types", false);
 // Prevent download history leaking to OS recent files
 user_pref("browser.download.manager.addToRecentDocs", false);
 
@@ -69,7 +71,7 @@ user_pref("beacon.enabled", false);
 
 // Block autoplay - 0=allow all, 1=block audible, 5=block all
 user_pref("media.autoplay.default", 5);
-user_pref("media.autoplay.blocking_policy", 2);
+user_pref("media.autoplay.blocking_policy", 0);
 
 // Uncomment if you never use browser-based video/voice calls or WebRTC
 // user_pref("media.peerconnection.enabled", false);
@@ -96,6 +98,9 @@ user_pref("browser.urlbar.suggest.openpage", true);
 user_pref("browser.urlbar.suggest.engines", false);
 user_pref("browser.urlbar.suggest.topsites", false);
 user_pref("browser.urlbar.autoFill", false);
+
+// Hide the bookmarks toolbar to avoid Firefox's empty-toolbar placeholder message
+user_pref("browser.toolbars.bookmarks.visibility", "never");
 
 // Network
 user_pref("network.manage-offline-status", false);
@@ -179,6 +184,10 @@ user_pref("browser.contentblocking.report.monitor.enabled", false);
 user_pref("browser.contentblocking.report.lockwise.enabled", false);
 // Mobile app promo
 user_pref("browser.contentblocking.report.show_mobile_app", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.enabled", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-a", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-b", false);
+user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-c", false);
 // Firefox Relay (email masking)
 user_pref("identity.fxaccounts.toolbar.defaultShowRelay", false);
 // Sponsored content on New Tab
@@ -210,6 +219,8 @@ user_pref("extensions.getAddons.showPane", false);
 user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
 // Onboarding/Welcome screens
 user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.preonboarding.enabled", false);
+user_pref("termsofuse.bypassNotification", true);
 // Default browser nagging
 user_pref("browser.defaultbrowser.notificationbar", false);
 // New Tab weather widget (Accuweather)
@@ -333,6 +344,12 @@ user_pref("security.mixed_content.upgrade_display_content.image", true);
 user_pref("browser.send_pings", false);
 
 // Telemetry (belt-and-suspenders with policies.json)
+user_pref("datareporting.healthreport.uploadEnabled", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("datareporting.usage.uploadEnabled", false);
+user_pref("datareporting.healthreport.service.enabled", false);
+user_pref("datareporting.healthreport.service.firstRun", false);
 user_pref("toolkit.telemetry.enabled", false);
 user_pref("toolkit.telemetry.unified", false);
 user_pref("toolkit.telemetry.archive.enabled", false);

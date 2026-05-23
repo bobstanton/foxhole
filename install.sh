@@ -484,7 +484,7 @@ get_distribution_dir() {
             fi
             ;;
         macos)
-            echo "/Applications/Firefox.app/Contents/Resources/distribution"
+            echo "/Library/Preferences/org.mozilla.firefox.plist"
             ;;
     esac
 }
@@ -562,22 +562,44 @@ install_user_js() {
 # Install policies.json
 install_policies() {
     local source_file="$1"
-    local dist_dir="$2"
+    local target="$2"
+    local os="${3:-}"
+
+    if [[ "$os" == "macos" ]]; then
+        local tmp_policy_json tmp_plist
+        tmp_policy_json=$(mktemp)
+        tmp_plist=$(mktemp)
+        trap 'rm -f "$tmp_policy_json" "$tmp_plist"' RETURN
+
+        cp "$source_file" "$tmp_policy_json"
+        if ! plutil -extract policies xml1 -o "$tmp_plist" "$tmp_policy_json"; then
+            error "Failed to create macOS Firefox policy plist"
+        fi
+        if ! plutil -insert EnterprisePoliciesEnabled -bool YES "$tmp_plist"; then
+            error "Failed to enable macOS Firefox enterprise policies"
+        fi
+
+        info "Installing Firefox policies plist (requires sudo)..."
+        sudo cp "$tmp_plist" "$target"
+        sudo chmod 644 "$target"
+        info "Installed Firefox policies -> $target"
+        return 0
+    fi
 
     local needs_sudo=false
-    if [[ ! -w "$(dirname "$dist_dir")" ]]; then
+    if [[ ! -w "$(dirname "$target")" ]]; then
         needs_sudo=true
     fi
 
     if $needs_sudo; then
         info "Installing policies.json (requires sudo)..."
-        sudo mkdir -p "$dist_dir"
-        sudo cp "$source_file" "$dist_dir/policies.json"
+        sudo mkdir -p "$target"
+        sudo cp "$source_file" "$target/policies.json"
     else
-        mkdir -p "$dist_dir"
-        cp "$source_file" "$dist_dir/policies.json"
+        mkdir -p "$target"
+        cp "$source_file" "$target/policies.json"
     fi
-    info "Installed policies.json -> $dist_dir"
+    info "Installed policies.json -> $target"
 }
 
 # Enable extensions in private browsing by updating extension-preferences.json
@@ -728,6 +750,12 @@ main() {
     # Get distribution directory
     local dist_dir
     dist_dir=$(get_distribution_dir "$os")
+    local policy_target
+    if [[ "$os" == "macos" ]]; then
+        policy_target="$dist_dir"
+    else
+        policy_target="$dist_dir/policies.json"
+    fi
 
     if $found_named_profiles; then
         # Auto-install to named profiles
@@ -744,7 +772,7 @@ main() {
             local profile_path="${entry#*:}"
             echo "  $profile_type/user.js -> $profile_path/user.js"
         done
-        echo "  policies.json -> $dist_dir/policies.json"
+        echo "  policies -> $policy_target"
         echo ""
         echo -n "Continue? [y/N]: "
         local confirm
@@ -824,7 +852,7 @@ main() {
                 local profile_path="${entry#*:}"
                 echo "  $profile_type/user.js -> $profile_path/user.js"
             done
-            echo "  policies.json -> $dist_dir/policies.json"
+            echo "  policies -> $policy_target"
             echo ""
             echo -n "Continue? [y/N]: "
             local confirm
@@ -867,7 +895,7 @@ main() {
             echo ""
             echo "This will install:"
             echo "  user.js       -> $firefox_profile/user.js"
-            echo "  policies.json -> $dist_dir/policies.json"
+            echo "  policies      -> $policy_target"
             echo ""
             echo -n "Continue? [y/N]: "
             local confirm
@@ -887,7 +915,7 @@ main() {
     if [[ ! -f "$policies_json" ]]; then
         error "policies.json not found: $policies_json"
     fi
-    install_policies "$policies_json" "$dist_dir"
+    install_policies "$policies_json" "$dist_dir" "$os"
 
     echo ""
     info "Installation complete!"
