@@ -569,19 +569,21 @@ install_policies() {
         local tmp_policy_json tmp_plist
         tmp_policy_json=$(mktemp)
         tmp_plist=$(mktemp)
-        trap 'rm -f "$tmp_policy_json" "$tmp_plist"' RETURN
 
         cp "$source_file" "$tmp_policy_json"
         if ! plutil -extract policies xml1 -o "$tmp_plist" "$tmp_policy_json"; then
+            rm -f "$tmp_policy_json" "$tmp_plist"
             error "Failed to create macOS Firefox policy plist"
         fi
         if ! plutil -insert EnterprisePoliciesEnabled -bool YES "$tmp_plist"; then
+            rm -f "$tmp_policy_json" "$tmp_plist"
             error "Failed to enable macOS Firefox enterprise policies"
         fi
 
         info "Installing Firefox policies plist (requires sudo)..."
         sudo cp "$tmp_plist" "$target"
         sudo chmod 644 "$target"
+        rm -f "$tmp_policy_json" "$tmp_plist"
         info "Installed Firefox policies -> $target"
         return 0
     fi

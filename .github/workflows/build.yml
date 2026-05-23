@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get arkenfox version to use
         id: arkenfox-version
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload default profile artifact
         if: steps.check-release.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foxhole-default
           path: |
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload relaxed profile artifact
         if: steps.check-release.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foxhole-relaxed
           path: |
@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload ephemeral profile artifact
         if: steps.check-release.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foxhole-ephemeral
           path: |
@@ -150,7 +150,7 @@ jobs:
 
       - name: Create Release
         if: steps.check-release.outputs.skip != 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.date.outputs.date }}-${{ steps.arkenfox-version.outputs.version }}
           name: Foxhole (${{ steps.arkenfox-version.outputs.version }})
@@ -169,10 +169,10 @@ jobs:
 
             1. Download and extract the zip
             2. Copy `user.js` from your chosen profile to your Firefox profile directory
-            3. Copy `policies.json` to Firefox's distribution folder:
-               - **Linux**: `/usr/lib/firefox/distribution/`
-               - **macOS**: `/Applications/Firefox.app/Contents/Resources/distribution/`
-               - **Windows**: `C:\Program Files\Mozilla Firefox\distribution\`
+            3. Install Firefox enterprise policies:
+               - **Linux**: copy `policies.json` to `/usr/lib/firefox/distribution/`
+               - **macOS**: install a managed plist at `/Library/Preferences/org.mozilla.firefox.plist`
+               - **Windows**: copy `policies.json` to `C:\Program Files\Mozilla Firefox\distribution\`
             4. Restart Firefox and visit `about:policies` to verify
 
             See the [README](https://github.com/${{ github.repository }}) for detailed instructions.
