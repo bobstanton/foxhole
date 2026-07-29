@@ -113,8 +113,8 @@ user_pref("browser.download.manager.addToRecentDocs", false);
 user_pref("browser.download.folderList", 2);
 
 /*** UI MINIMALISM ***/
-// Hide the bookmarks toolbar to avoid Firefox's empty-toolbar placeholder message
-user_pref("browser.toolbars.bookmarks.visibility", "never");
+// Show the bookmarks toolbar only on the New Tab page
+user_pref("browser.toolbars.bookmarks.visibility", "newtab");
 
 /*** WEBGL: ALLOW ***/
 // Some banks use WebGL for device fingerprinting as anti-fraud

@@ -2,37 +2,36 @@
  * Foxhole - Ephemeral Profile
  * user-overrides-ephemeral.js
  *
- * Applied on top of the Default profile. Enables session restore with all
- * data cleared on shutdown - tabs persist, but history/cookies/cache are wiped.
+ * Applied on top of the Default profile. Enables session restore while clearing
+ * transient browsing data. Cookies/storage and tab state persist across restart.
  *
  */
 
-// Clear data on shutdown but preserve session (tabs)
+// Clear transient data on shutdown but preserve cookies/storage and session state
 user_pref("privacy.sanitize.sanitizeOnShutdown", true);
 
 // v2 prefs (FF128+)
 user_pref("privacy.clearOnShutdown_v2.cache", true);
-user_pref("privacy.clearOnShutdown_v2.cookiesAndStorage", true);
+user_pref("privacy.clearOnShutdown_v2.cookiesAndStorage", false);
 user_pref("privacy.clearOnShutdown_v2.historyFormDataAndDownloads", true);
 user_pref("privacy.clearOnShutdown_v2.siteSettings", false);  // Preserve site permissions
 
-// Legacy prefs - explicitly preserve sessions
+// Legacy prefs - explicitly preserve cookies/storage and sessions
 user_pref("privacy.clearOnShutdown.cache", true);
-user_pref("privacy.clearOnShutdown.cookies", true);
+user_pref("privacy.clearOnShutdown.cookies", false);
 user_pref("privacy.clearOnShutdown.downloads", true);
 user_pref("privacy.clearOnShutdown.formdata", true);
 user_pref("privacy.clearOnShutdown.history", true);
-user_pref("privacy.clearOnShutdown.offlineApps", true);
+user_pref("privacy.clearOnShutdown.offlineApps", false);
 user_pref("privacy.clearOnShutdown.sessions", false);  // Keep sessions!
 user_pref("privacy.clearOnShutdown.siteSettings", false);
 
-// Don't save per-tab back/forward history across restarts
-// Tabs restore to current URL only, no back/forward entries from previous session
-user_pref("browser.sessionstore.max_serialize_back", 0);
-user_pref("browser.sessionstore.max_serialize_forward", 0);
+// Preserve per-tab back/forward history so restored tabs behave like before restart
+user_pref("browser.sessionstore.max_serialize_back", 10);
+user_pref("browser.sessionstore.max_serialize_forward", 10);
 
-// Disable history entirely
-user_pref("places.history.enabled", false);
+// Keep history enabled - disabling breaks restored tab navigation
+user_pref("places.history.enabled", true);
 
 // No form data
 user_pref("browser.formfill.enable", false);

@@ -70,7 +70,9 @@ user_pref("beacon.enabled", false);
 // user_pref("dom.event.clipboardevents.enabled", false);
 
 // Block autoplay - 0=allow all, 1=block audible, 5=block all
-user_pref("media.autoplay.default", 5);
+// 5 breaks video sites (YouTube needs multiple clicks, seek/autoplay-next stall);
+// 1 still stops videos auto-starting with sound but allows playback after interaction
+user_pref("media.autoplay.default", 1);
 user_pref("media.autoplay.blocking_policy", 0);
 
 // Uncomment if you never use browser-based video/voice calls or WebRTC
@@ -99,8 +101,8 @@ user_pref("browser.urlbar.suggest.engines", false);
 user_pref("browser.urlbar.suggest.topsites", false);
 user_pref("browser.urlbar.autoFill", false);
 
-// Hide the bookmarks toolbar to avoid Firefox's empty-toolbar placeholder message
-user_pref("browser.toolbars.bookmarks.visibility", "never");
+// Show the bookmarks toolbar only on the New Tab page
+user_pref("browser.toolbars.bookmarks.visibility", "newtab");
 
 // Network
 user_pref("network.manage-offline-status", false);

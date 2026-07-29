@@ -43,9 +43,9 @@ Privacy-hardened Firefox profiles built on [Arkenfox](https://github.com/arkenfo
 ### Ephemeral (`user-overrides-ephemeral.js`)
 
 Based on Default profile, with these changes:
-- Tabs persist across restarts (URLs only, no back/forward history)
-- All other data cleared on shutdown (history, cookies, cache, form data)
-- History disabled entirely
+- Tabs persist across restarts with back/forward history intact
+- Cookies and site storage persist across restarts
+- Cache, browsing/download history, and form data cleared on shutdown
 - No favicons or thumbnails cached
 - Visited links styling disabled (fingerprinting protection)
 
