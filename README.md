@@ -137,7 +137,11 @@ Based on Default profile, with these changes:
 - New tab sponsored content
 - Extension/feature recommendations
 - Captive portal detection
-- AI chatbot (Generative AI)
+- All AI features (chatbot, Smart Window, Link Preview key points, smart tab
+  groups, translations, PDF alt-text, visual search) via the `AIControls` policy
+- Mozilla VPN / IP Protection, Mozilla Monitor, and Firefox Relay upsells
+- Firefox Focus and mobile app promos
+- Import-from-another-browser prompts (`DisableProfileImport`)
 
 ### Enforced Settings
 
@@ -188,17 +192,19 @@ cp dist/default/user.js ~/.mozilla/firefox/*.default-release/
 System-wide policies (affects all profiles):
 
 ```bash
-# Linux
-sudo mkdir -p /usr/lib/firefox/distribution
-sudo cp policies.json /usr/lib/firefox/distribution/
+# Linux, preferred - survives Firefox package upgrades. Supported on distro
+# builds compiled with MOZ_SYSTEM_POLICIES (Fedora, Debian, Ubuntu, Arch).
+sudo mkdir -p /etc/firefox/policies
+sudo cp policies.json /etc/firefox/policies/
 
-# Linux (alternate path)
+# Linux, fallback - works on every build, including Mozilla's tarball, but a
+# package upgrade may replace it. Use the path where the firefox binary lives:
+#   readlink -f "$(command -v firefox)"
 sudo mkdir -p /usr/lib64/firefox/distribution
 sudo cp policies.json /usr/lib64/firefox/distribution/
 
-# Flatpak
-mkdir -p ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution
-cp policies.json ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution/
+# Flatpak: not supported. The app's program files are read-only, and the host's
+# /etc/firefox is not visible inside the sandbox. Use the distro package.
 
 # macOS
 plutil -extract policies xml1 -o /tmp/org.mozilla.firefox.plist policies.json

@@ -2,9 +2,9 @@
   "_README": {
     "description": "Foxhole - Firefox Enterprise Policies for privacy hardening",
     "installation": {
-      "linux": "sudo cp policies.json /usr/lib/firefox/distribution/policies.json",
-      "linux_alt": "sudo cp policies.json /usr/lib64/firefox/distribution/policies.json",
-      "flatpak": "mkdir -p ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution && cp policies.json ~/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution/policies.json",
+      "linux": "sudo mkdir -p /etc/firefox/policies && sudo cp policies.json /etc/firefox/policies/policies.json",
+      "linux_alt": "sudo cp policies.json \"$(dirname \"$(readlink -f \"$(command -v firefox)\")\")/distribution/policies.json\"",
+      "flatpak": "Not supported - program files are read-only and the host /etc/firefox is not visible in the sandbox. Use the distro Firefox package.",
       "macos": "Convert policies.json to a managed plist and install it to /Library/Preferences/org.mozilla.firefox.plist",
       "windows": "copy policies.json \"C:\\Program Files\\Mozilla Firefox\\distribution\\policies.json\""
     },
@@ -20,15 +20,25 @@
     "SkipTermsOfUse": true,
     "DisableSetDesktopBackground": true,
     "DontCheckDefaultBrowser": true,
+    "DisableProfileImport": true,
     "CaptivePortal": false,
     "HttpsOnlyMode": "enabled",
+    "AIControls": {
+      "Default": {
+        "Value": "blocked",
+        "Locked": true
+      }
+    },
     "GenerativeAI": {
       "Enabled": false,
       "Chatbot": false,
+      "SmartWindow": false,
       "LinkPreviews": false,
       "TabGroups": false,
       "Locked": true
     },
+    "VisualSearchEnabled": false,
+    "IPProtectionAvailable": false,
     "FirefoxSuggest": {
       "WebSuggestions": false,
       "SponsoredSuggestions": false,
@@ -172,7 +182,160 @@
         "Value": false,
         "Status": "locked"
       },
-      "datareporting.healthreport.uploadEnabled": {
+      "browser.newtabpage.activity-stream.mobileDownloadModal.variant-a": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.mobileDownloadModal.variant-b": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.mobileDownloadModal.variant-c": {
+        "Value": false,
+        "Status": "locked"
+      },
+
+      "browser.promo.focus.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.promo.pin.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.promo.cookiebanners.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.vpn_promo.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+
+      "browser.contentblocking.report.vpn.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.contentblocking.report.hide_vpn_banner": {
+        "Value": true,
+        "Status": "locked"
+      },
+      "browser.contentblocking.report.monitor.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.contentblocking.report.lockwise.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.contentblocking.report.show_mobile_app": {
+        "Value": false,
+        "Status": "locked"
+      },
+
+      "identity.fxaccounts.toolbar.pxiToolbarEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "identity.fxaccounts.toolbar.pxiToolbarEnabled.monitorEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "identity.fxaccounts.toolbar.pxiToolbarEnabled.relayEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "identity.fxaccounts.toolbar.pxiToolbarEnabled.vpnEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "identity.fxaccounts.toolbar.defaultShowRelay": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "signon.firefoxRelay.feature": {
+        "Value": "disabled",
+        "Status": "locked"
+      },
+
+      "browser.ml.enable": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.sidebar": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.menu": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.page": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.shortcuts": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.shortcuts.custom": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.chat.shortcuts.smartwindow": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.linkPreview.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.linkPreview.optin": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.ml.pageAssist.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.smartwindow.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.tabs.groups.smart.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.tabs.groups.smart.userEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.tabs.groups.smart.optin": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.translations.enable": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "pdfjs.enableAltText": {
+        "Value": false,
+        "Status": "locked"
+      },
+
+      "browser.migrate.content-modal.about-welcome-behavior": {
+        "Value": "default",
+        "Status": "locked"
+      },
+      "browser.migrate.preferences-entrypoint.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.migrate.content-modal.import-all.enabled": {
         "Value": false,
         "Status": "locked"
       },
@@ -182,10 +345,6 @@
       },
       "datareporting.policy.dataSubmissionPolicyBypassNotification": {
         "Value": true,
-        "Status": "locked"
-      },
-      "datareporting.usage.uploadEnabled": {
-        "Value": false,
         "Status": "locked"
       },
       "browser.search.hiddenOneOffs": {

@@ -164,15 +164,46 @@ user_pref("browser.tabs.firefox-view-next", false);
 // Built-in translation
 user_pref("browser.translations.enable", false);
 user_pref("browser.translations.automaticallyPopup", false);
+// AI features - "AI Controls" pane in about:preferences [FF153+]
+// These mirror the AIControls enterprise policy; "blocked" removes the feature
+// from the UI entirely, "default"/"available" leaves it exposed.
+user_pref("browser.ai.control.default", "blocked");
+user_pref("browser.ai.control.sidebarChatbot", "blocked");
+user_pref("browser.ai.control.translations", "blocked");
+user_pref("browser.ai.control.pdfjsAltText", "blocked");
+user_pref("browser.ai.control.smartTabGroups", "blocked");
+user_pref("browser.ai.control.linkPreviewKeyPoints", "blocked");
+user_pref("browser.ai.control.smartWindow", "blocked");
 // AI Chatbot integration [FF130+]
 user_pref("browser.ml.chat.enabled", false);
 user_pref("browser.ml.chat.sidebar", false);
+user_pref("browser.ml.chat.menu", false);
+user_pref("browser.ml.chat.page", false);
 user_pref("browser.ml.chat.shortcuts", false);
 user_pref("browser.ml.chat.shortcuts.custom", false);
+user_pref("browser.ml.chat.shortcuts.smartwindow", false);
 user_pref("browser.ml.chat.provider", "");
 user_pref("browser.ml.chat.providers", "");
 user_pref("browser.ml.chat.providers.selection.default", "");
 user_pref("browser.ml.enable", false);
+// Link Preview key points (local ML summarization) [FF137+]
+user_pref("browser.ml.linkPreview.enabled", false);
+user_pref("browser.ml.linkPreview.optin", false);
+// Page Assist
+user_pref("browser.ml.pageAssist.enabled", false);
+// Smart Window (AI browsing assistant) [FF153+]
+user_pref("browser.smartwindow.enabled", false);
+user_pref("browser.smartwindow.worldcup.enabled", false);
+// Smart Tab Groups (ML topic/grouping suggestions)
+user_pref("browser.tabs.groups.smart.enabled", false);
+user_pref("browser.tabs.groups.smart.userEnabled", false);
+user_pref("browser.tabs.groups.smart.optin", false);
+user_pref("browser.tabs.groups.smart.searchTopicEnabled", false);
+// PDF alt-text generation (local ML model)
+user_pref("pdfjs.enableAltText", false);
+user_pref("pdfjs.enableUpdatedAddImage", false);
+// AI-backed visual search
+user_pref("browser.search.visualSearch.featureGate", false);
 // Firefox Accounts / Sync (disable if not using sync)
 user_pref("identity.fxaccounts.enabled", false);
 // UITour (Mozilla guided tours)
@@ -180,18 +211,36 @@ user_pref("browser.uitour.enabled", false);
 // VPN promos
 user_pref("browser.vpn_promo.enabled", false);
 user_pref("browser.contentblocking.report.vpn.enabled", false);
+user_pref("browser.contentblocking.report.hide_vpn_banner", true);
+// Built-in Mozilla VPN / IP Protection [FF150+]
+user_pref("browser.ipProtection.enabled", false);
+user_pref("browser.ipProtection.blockIPProtectionCallouts", true);
 // Mozilla Monitor (breach monitoring)
 user_pref("browser.contentblocking.report.monitor.enabled", false);
 // Lockwise (password manager promo)
 user_pref("browser.contentblocking.report.lockwise.enabled", false);
-// Mobile app promo
+// Firefox Focus / mobile app promos
+user_pref("browser.promo.focus.enabled", false);
+user_pref("browser.promo.pin.enabled", false);
+user_pref("browser.promo.cookiebanners.enabled", false);
 user_pref("browser.contentblocking.report.show_mobile_app", false);
+// Monitor / Relay / VPN upsells in the account (PXI) toolbar menu
+user_pref("identity.fxaccounts.toolbar.pxiToolbarEnabled", false);
+user_pref("identity.fxaccounts.toolbar.pxiToolbarEnabled.monitorEnabled", false);
+user_pref("identity.fxaccounts.toolbar.pxiToolbarEnabled.relayEnabled", false);
+user_pref("identity.fxaccounts.toolbar.pxiToolbarEnabled.vpnEnabled", false);
+// Import-from-another-browser prompts
+user_pref("browser.migrate.content-modal.about-welcome-behavior", "default");
+user_pref("browser.migrate.preferences-entrypoint.enabled", false);
+user_pref("browser.migrate.content-modal.import-all.enabled", false);
+user_pref("browser.newtabpage.activity-stream.migrationExpired", true);
 user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.enabled", false);
 user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-a", false);
 user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-b", false);
 user_pref("browser.newtabpage.activity-stream.mobileDownloadModal.variant-c", false);
 // Firefox Relay (email masking)
 user_pref("identity.fxaccounts.toolbar.defaultShowRelay", false);
+user_pref("signon.firefoxRelay.feature", "disabled");
 // Sponsored content on New Tab
 user_pref("browser.newtabpage.activity-stream.showSponsored", false);
 user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);

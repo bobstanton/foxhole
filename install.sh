@@ -118,15 +118,31 @@ my$p=$ARGV[0];my$u="";$u.=chr(ord($_)&0xFF).chr(0)for split//,$p;printf"%016X\n"
 }
 
 # Get Firefox installation path (where firefox binary lives)
+# Resolves the real binary first so we target the Firefox that actually runs,
+# rather than guessing between lib/ and lib64/ (distros differ, and some ship
+# /usr/lib/firefox as a symlink to /usr/lib64/firefox).
 get_firefox_install_path() {
     local os="$1"
     case "$os" in
         linux)
-            if [[ -d "/usr/lib64/firefox" ]]; then
-                echo "/usr/lib64/firefox"
-            elif [[ -d "/usr/lib/firefox" ]]; then
-                echo "/usr/lib/firefox"
+            local bin real dir
+            bin=$(command -v firefox 2>/dev/null || true)
+            if [[ -n "$bin" ]]; then
+                real=$(readlink -f "$bin" 2>/dev/null || echo "$bin")
+                dir=$(dirname "$real")
+                # Wrapper scripts in /usr/bin point at the real install dir
+                if [[ -f "$dir/libxul.so" || -d "$dir/browser" ]]; then
+                    echo "$dir"
+                    return 0
+                fi
             fi
+            local candidate
+            for candidate in /usr/lib64/firefox /usr/lib/firefox /opt/firefox; do
+                if [[ -d "$candidate/browser" ]]; then
+                    echo "$candidate"
+                    return 0
+                fi
+            done
             ;;
         macos)
             echo "/Applications/Firefox.app/Contents/MacOS"
@@ -466,19 +482,27 @@ EOF
 }
 
 # Get Firefox distribution directory
+#
+# On Linux, Firefox reads policies.json from (in priority order):
+#   1. /etc/firefox/policies/policies.json  - only on builds with
+#      MOZ_SYSTEM_POLICIES (Fedora, Debian, Ubuntu, Arch). Survives package
+#      upgrades, so it is preferred when available.
+#   2. <installdir>/distribution/policies.json - works on every build,
+#      including Mozilla's own tarball, but a package upgrade can replace it.
+# We write both so the policies apply regardless of how Firefox was built.
 get_distribution_dir() {
     local os="$1"
 
     case "$os" in
         linux)
-            if [[ -d "/usr/lib/firefox" ]]; then
-                echo "/usr/lib/firefox/distribution"
-            elif [[ -d "/usr/lib64/firefox" ]]; then
-                echo "/usr/lib64/firefox/distribution"
+            local install_dir
+            install_dir=$(get_firefox_install_path linux)
+            if [[ -n "$install_dir" ]]; then
+                echo "$install_dir/distribution"
             elif [[ -d "/snap/firefox/current/usr/lib/firefox" ]]; then
-                error "Snap Firefox detected. Policies must be installed differently for Snap packages."
-            elif [[ -d "$HOME/.var/app/org.mozilla.firefox" ]]; then
-                echo "$HOME/.var/app/org.mozilla.firefox/current/active/files/lib/firefox/distribution"
+                error "Snap Firefox detected. Snap builds read policies from /run/user/\$UID/firefox/policies.json (toolkit.policies.perUserDir) and are not supported by this installer."
+            elif flatpak info org.mozilla.firefox >/dev/null 2>&1; then
+                error "Flatpak Firefox detected. Its program files are read-only, so policies.json cannot be installed into it. Install the distro Firefox package instead, or apply policies manually inside the Flatpak."
             else
                 error "Firefox installation not found"
             fi
@@ -487,6 +511,11 @@ get_distribution_dir() {
             echo "/Library/Preferences/org.mozilla.firefox.plist"
             ;;
     esac
+}
+
+# System-wide policy directory (Linux only; empty when not applicable)
+get_system_policy_dir() {
+    [[ "$1" == "linux" ]] && echo "/etc/firefox/policies"
 }
 
 # Download latest release
@@ -588,20 +617,35 @@ install_policies() {
         return 0
     fi
 
-    local needs_sudo=false
-    if [[ ! -w "$(dirname "$target")" ]]; then
-        needs_sudo=true
+    # Linux: write to the install dir and, when present, the system-wide
+    # /etc/firefox/policies dir (which survives Firefox package upgrades).
+    local targets=("$target")
+    local system_dir
+    system_dir=$(get_system_policy_dir "$os")
+    if [[ -n "$system_dir" ]]; then
+        targets+=("$system_dir")
     fi
 
-    if $needs_sudo; then
-        info "Installing policies.json (requires sudo)..."
-        sudo mkdir -p "$target"
-        sudo cp "$source_file" "$target/policies.json"
-    else
-        mkdir -p "$target"
-        cp "$source_file" "$target/policies.json"
-    fi
-    info "Installed policies.json -> $target"
+    local dir
+    for dir in "${targets[@]}"; do
+        if [[ -d "$dir" && -w "$dir" ]] || [[ ! -d "$dir" && -w "$(dirname "$dir")" ]]; then
+            mkdir -p "$dir"
+            cp "$source_file" "$dir/policies.json"
+            chmod 644 "$dir/policies.json"
+        else
+            info "Installing policies.json to $dir (requires sudo)..."
+            sudo mkdir -p "$dir"
+            sudo cp "$source_file" "$dir/policies.json"
+            sudo chmod 644 "$dir/policies.json"
+        fi
+
+        # Verify rather than assume - a silent no-op here is what makes
+        # extensions and search engine changes appear to "not work".
+        if [[ ! -s "$dir/policies.json" ]]; then
+            error "Failed to install policies.json -> $dir"
+        fi
+        info "Installed policies.json -> $dir/policies.json"
+    done
 }
 
 # Enable extensions in private browsing by updating extension-preferences.json
