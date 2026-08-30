@@ -193,6 +193,76 @@ detect_os() {
     esac
 }
 
+dep_hint() {
+    local os="$1" dep="$2"
+
+    if [[ "$os" == "macos" ]]; then
+        case "$dep" in
+            perl-JSON-PP) echo "         macOS: bundled with system perl; otherwise 'cpan JSON::PP'" ;;
+            *)            echo "         macOS: $dep ships with the OS" ;;
+        esac
+        return
+    fi
+
+    case "$dep" in
+        sqlite3)
+            echo "         Fedora/RHEL:   sudo dnf install sqlite"
+            echo "         Ubuntu/Debian: sudo apt install sqlite3"
+            echo "         Arch:          sudo pacman -S sqlite" ;;
+        perl)
+            echo "         Fedora/RHEL:   sudo dnf install perl-interpreter"
+            echo "         Ubuntu/Debian: sudo apt install perl"
+            echo "         Arch:          sudo pacman -S perl" ;;
+        perl-JSON-PP)
+            echo "         Fedora/RHEL:   sudo dnf install perl-JSON-PP"
+            echo "         Ubuntu/Debian: sudo apt install libjson-pp-perl"
+            echo "         Arch:          sudo pacman -S perl-json-pp" ;;
+        *)
+            echo "         Fedora/RHEL:   sudo dnf install $dep"
+            echo "         Ubuntu/Debian: sudo apt install $dep"
+            echo "         Arch:          sudo pacman -S $dep" ;;
+    esac
+}
+
+check_dependencies() {
+    local os="$1"
+    local need_download="$2"
+    local missing=()
+
+    # Required for the Firefox 128+ Profile Groups database
+    command -v sqlite3 &>/dev/null || missing+=("sqlite3")
+
+    # calculate_install_hash() and enable_extensions_private_browsing()
+    if ! command -v perl &>/dev/null; then
+        missing+=("perl")
+    elif ! perl -MJSON::PP -e1 &>/dev/null; then
+        # JSON::PP is core perl, but Fedora and Debian split it into its own
+        # package, so finding the perl binary is not enough.
+        missing+=("perl-JSON-PP")
+    fi
+
+    # Only needed when fetching a release instead of using local files
+    if [[ "$need_download" == "true" ]]; then
+        command -v curl  &>/dev/null || missing+=("curl")
+        command -v unzip &>/dev/null || missing+=("unzip")
+    fi
+
+    if [[ "$os" == "macos" ]]; then
+        command -v plutil &>/dev/null || missing+=("plutil")
+    fi
+
+    # Return before expanding the array - Bash 3.2 with `set -u` treats an
+    # empty "${arr[@]}" as an unbound variable.
+    [[ ${#missing[@]} -eq 0 ]] && return 0
+
+    local msg="Missing required dependencies: ${missing[*]}"
+    local dep
+    for dep in "${missing[@]}"; do
+        msg+=$'\n\n'"       $dep"$'\n'"$(dep_hint "$os" "$dep")"
+    done
+    error "$msg"
+}
+
 # Get Firefox base directory (where profiles and Profile Groups are stored)
 get_firefox_dir() {
     local os="$1"
@@ -690,7 +760,7 @@ enable_extensions_private_browsing() {
             $data->{$id}{data_collection} //= [];
         }
         print encode_json($data);
-    ' "$ids_joined" 2>/dev/null)
+    ' "$ids_joined" 2>/dev/null) || true
 
     if [[ -z "$json" ]]; then
         # Fallback if Perl failed - create simple JSON directly
@@ -733,20 +803,29 @@ main() {
     os=$(detect_os)
     info "Detected OS: $os"
 
+    local source_dir="" local_source="" local_source_label=""
+    if [[ -n "$SCRIPT_DIR" && -d "$SCRIPT_DIR/dist/default" ]]; then
+        local_source="$SCRIPT_DIR/dist"
+        local_source_label="Using local dist/ directory"
+    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/default/user.js" ]]; then
+        local_source="$SCRIPT_DIR"
+        local_source_label="Using local directory"
+    fi
+
+    if [[ -n "$local_source" ]]; then
+        check_dependencies "$os" false
+    else
+        check_dependencies "$os" true
+    fi
+
     # Handle reset if requested
     if $do_reset; then
         reset_firefox "$os"
     fi
 
-    # Check for local files first
-    local source_dir=""
-
-    if [[ -n "$SCRIPT_DIR" && -d "$SCRIPT_DIR/dist/default" ]]; then
-        source_dir="$SCRIPT_DIR/dist"
-        info "Using local dist/ directory"
-    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/default/user.js" ]]; then
-        source_dir="$SCRIPT_DIR"
-        info "Using local directory"
+    if [[ -n "$local_source" ]]; then
+        source_dir="$local_source"
+        info "$local_source_label"
     else
         # Download from GitHub
         local tmp_dir
@@ -755,16 +834,6 @@ main() {
 
         download_release "$tmp_dir"
         source_dir="$tmp_dir"
-    fi
-
-    # sqlite3 is required for Firefox 128+ profile system
-    if ! command -v sqlite3 &>/dev/null; then
-        error "sqlite3 is required but not installed.
-       Install it to enable profile management:
-         Fedora/RHEL: sudo dnf install sqlite
-         Ubuntu/Debian: sudo apt install sqlite3
-         Arch: sudo pacman -S sqlite
-         macOS: sqlite3 is included by default"
     fi
 
     # Check for named profiles (Default/Primary, Relaxed, Ephemeral)
